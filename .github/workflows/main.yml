@@ -23,5 +23,21 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
-
- 
+    - name: Publish
+      run: dotnet publish -c Release -r win-x64 --self-contained
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+          name: myapp
+          path: ./bin/Release/net5.0/win-x64/publish
+    - name: Get Artifact URL
+      id: get_artifact_url
+      run: |
+          $response = Invoke-RestMethod -Uri "https://api.github.com/repos/${env:GITHUB_REPOSITORY}/actions/runs/${env:GITHUB_RUN_ID}/artifacts" -Headers @{"Authorization"="Bearer $env:GITHUB_TOKEN"; "Accept"="application/vnd.github.v3+json"}
+          $url = $response.artifacts[0].archive_download_url
+          Write-Output "::set-output name=url::$url"
+    - name: Download Artifact
+      run: |
+          Invoke-WebRequest -Uri "${{ steps.get_artifact_url.outputs.url }}" -OutFile myapp.zip
+          Expand-Archive myapp.zip -DestinationPath myapp_directory
+          Remove-Item myapp.zip
